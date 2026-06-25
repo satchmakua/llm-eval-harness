@@ -123,13 +123,67 @@ tasks:
 | `json_schema` | output is valid JSON, optionally matching `schema`         |
 | `llm_judge`   | a judge model scores >= `pass_threshold` against `rubric`  |
 
+## Understanding the codebase
+
+**Read the files in this order.**
+
+1. `lmeval/types.py` — the five dataclasses everything else passes around
+   (`Task`, `Suite`, `Completion`, `GradeResult`, `TaskResult`). The whole repo
+   is functions over these. Note `TaskResult.verdict`: the pass/fail rule.
+2. `lmeval/cli.py` — the three subcommands (`run`, `baseline`, `gate`) and how a
+   run is wired together. This is the front door.
+3. `lmeval/runner.py` — the core loop: every (suite × model × task) becomes one
+   `TaskResult`. The single most important file.
+4. `lmeval/providers/` — `base.py` is the one-method interface; `ollama.py`,
+   `openai.py`, `anthropic.py` are uniform raw-HTTP adapters; `__init__.py` holds
+   the registry and the `provider:model` id parser.
+5. `lmeval/graders/` — `deterministic.py` (`exact`, `contains`, `regex`,
+   `json_schema`) and `llm_judge.py` (a second model scores 1–5 against a rubric).
+6. `lmeval/report.py` then `lmeval/gate.py` — aggregation into per-(suite, model)
+   summaries, then comparison against a committed baseline.
+7. `lmeval/pricing.py` — the token→USD table and the `$0` fallback.
+
+**The one path that matters (a `run`).** Config + `suites/*.yaml` are loaded into
+`Suite`/`Task` objects → `runner` iterates suites × models × tasks → for each
+task, `parse_model_id` picks the provider, `provider.complete()` returns a
+`Completion` (text + token counts + latency), each grader scores the text (an
+`llm_judge` grader is handed a `judge_fn` that calls a second model),
+`cost_usd` prices the tokens, and it all lands in a `TaskResult`.
+`report.summarize()` then groups results by (suite, model) into pass rate, mean
+judge score, token/cost sums, and p50/p95 latency; `gate` compares those pass
+rates to a baseline and sets the process exit code.
+
+**Concepts worth understanding:**
+
+- **`provider:model` addressing.** Models are `openai:gpt-4o-mini`,
+  `ollama:llama3.1:8b`, etc. A bare id uses `default_provider`. The parser is
+  careful about the *tag* colon: `llama3.1:8b` splits to provider + `8b` only if
+  `llama3.1` is a registered provider (it isn't), so the tag survives intact.
+- **Two grader families.** Deterministic graders are reproducible and free, so
+  they gate CI. The LLM judge captures subjective quality (faithfulness, tone)
+  but isn't reproducible — which is why CI runs `--deterministic-only`.
+- **The verdict rule.** A task passes only if *every* deciding grader passes;
+  it's `None` when no grader produced a definite verdict, and `False` on error.
+  Pass rate is computed over deciding tasks only.
+- **Two ways the gate fails.** A relative drop below the baseline (beyond an
+  optional `--tolerance`), or falling under an absolute `--min-pass-rate` floor.
+  A (suite, model) with no baseline entry is reported but never fails the gate.
+- **Cost model.** Local Ollama models and any model not in the pricing table are
+  counted as `$0` rather than guessed. `temperature: 0` keeps runs as
+  reproducible as the providers allow.
+
+## Roadmap & status
+
+Planned work and known limitations are tracked in [`ROADMAP.md`](ROADMAP.md);
+the current implementation status is in [`PROGRESS.md`](PROGRESS.md).
+
 ## Layout
 
 ```
 lmeval/        the package (providers, graders, runner, report, gate, cli)
 suites/        eval suites in YAML
 baselines/     committed baseline snapshots for gating
-tests/         pytest unit tests (graders + gate logic)
+tests/         pytest unit tests (graders, gate, pricing)
 .github/       CI workflow
 ```
 
