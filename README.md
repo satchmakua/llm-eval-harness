@@ -135,8 +135,9 @@ tasks:
 3. `lmeval/runner.py` — the core loop: every (suite × model × task) becomes one
    `TaskResult`. The single most important file.
 4. `lmeval/providers/` — `base.py` is the one-method interface; `ollama.py`,
-   `openai.py`, `anthropic.py` are uniform raw-HTTP adapters; `__init__.py` holds
-   the registry and the `provider:model` id parser.
+   `openai.py`, `anthropic.py` are uniform raw-HTTP adapters (hosted ones retry
+   transient failures via `_http.py`); `__init__.py` holds the registry and the
+   `provider:model` id parser.
 5. `lmeval/graders/` — `deterministic.py` (`exact`, `contains`, `regex`,
    `json_schema`) and `llm_judge.py` (a second model scores 1–5 against a rubric).
 6. `lmeval/report.py` then `lmeval/gate.py` — aggregation into per-(suite, model)

@@ -3,18 +3,18 @@
 import os
 import time
 
-import requests
-
 from ..types import Completion
+from ._http import post_with_retries
 from .base import Provider
 
 
 class OpenAIProvider(Provider):
     name = "openai"
 
-    def __init__(self, base_url="https://api.openai.com/v1", timeout=120):
+    def __init__(self, base_url="https://api.openai.com/v1", timeout=120, max_retries=3):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.max_retries = max_retries
         self.api_key = os.environ.get("OPENAI_API_KEY")
 
     def available(self):
@@ -29,13 +29,13 @@ class OpenAIProvider(Provider):
                 if k in options:
                     body[k] = options[k]
         started = time.time()
-        resp = requests.post(
+        resp = post_with_retries(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}"},
             json=body,
             timeout=self.timeout,
+            max_retries=self.max_retries,
         )
-        resp.raise_for_status()
         data = resp.json()
         usage = data.get("usage", {})
         return Completion(

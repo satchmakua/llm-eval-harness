@@ -5,11 +5,9 @@ limitations that motivate it.
 
 ## Known limitations
 
-- **Partial test coverage.** Graders, gate logic, and pricing are unit-tested;
-  `runner`, `report`, `suite` loading, the `provider:model` parser, and `cli`
+- **Partial test coverage.** Graders, gate logic, pricing, reporting, suite
+  loading, and the `provider:model` parser are unit-tested; `runner` and `cli`
   are not yet.
-- **No retry/backoff.** Transient hosted-provider errors (HTTP 429 / 5xx)
-  surface as a single errored task instead of being retried.
 - **Sequential execution.** The runner makes one model call at a time, so large
   suites are latency-bound.
 - **Single-sample judging.** The LLM judge scores once with one model; score
@@ -19,8 +17,7 @@ limitations that motivate it.
 
 ## Near term
 
-- Fill the test-coverage gaps above (`report`, `suite`, the id parser, `cli`).
-- Retry with exponential backoff in the hosted provider adapters.
+- Cover the remaining modules in tests (`runner`, `cli`).
 - Optional cost-budget guardrail that aborts a run before it overspends.
 
 ## Medium term

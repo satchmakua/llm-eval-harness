@@ -3,9 +3,8 @@
 import os
 import time
 
-import requests
-
 from ..types import Completion
+from ._http import post_with_retries
 from .base import Provider
 
 
@@ -13,10 +12,11 @@ class AnthropicProvider(Provider):
     name = "anthropic"
 
     def __init__(self, base_url="https://api.anthropic.com/v1",
-                 timeout=120, version="2023-06-01"):
+                 timeout=120, version="2023-06-01", max_retries=3):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.version = version
+        self.max_retries = max_retries
         self.api_key = os.environ.get("ANTHROPIC_API_KEY")
 
     def available(self):
@@ -43,7 +43,7 @@ class AnthropicProvider(Provider):
         if options and "temperature" in options:
             body["temperature"] = options["temperature"]
         started = time.time()
-        resp = requests.post(
+        resp = post_with_retries(
             f"{self.base_url}/messages",
             headers={
                 "x-api-key": self.api_key,
@@ -52,8 +52,8 @@ class AnthropicProvider(Provider):
             },
             json=body,
             timeout=self.timeout,
+            max_retries=self.max_retries,
         )
-        resp.raise_for_status()
         data = resp.json()
         text = "".join(b.get("text", "") for b in data.get("content", [])
                        if b.get("type") == "text")
