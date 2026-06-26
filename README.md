@@ -90,6 +90,11 @@ Anthropic rates (verified 2026-06-09 against each provider's pricing page).
 Provider pricing drifts over time, so re-check it periodically. Any model not
 listed there — including every local Ollama model — is counted as $0.
 
+Pass `--max-cost <USD>` to any command to cap spend: the run stops before
+starting the next task once cumulative cost reaches the budget. It's a soft cap
+(actual spend can exceed it by at most the one task that crosses the line), and
+free local models never trip it.
+
 ## Adding a suite
 
 Drop a YAML file in `suites/`:
@@ -184,7 +189,8 @@ the current implementation status is in [`PROGRESS.md`](PROGRESS.md).
 lmeval/        the package (providers, graders, runner, report, gate, cli)
 suites/        eval suites in YAML
 baselines/     committed baseline snapshots for gating
-tests/         pytest unit tests (graders, gate, pricing)
+tests/         pytest unit tests (graders, gate, pricing, report, suite,
+               providers, retry, runner, cli)
 .github/       CI workflow
 ```
 

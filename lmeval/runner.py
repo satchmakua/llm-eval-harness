@@ -64,14 +64,28 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
     )
 
 
-def run_suites(suites, config, cli_models=None, deterministic_only=False):
+def run_suites(suites, config, cli_models=None, deterministic_only=False, max_cost=None):
+    """Run every (suite, model, task) and collect results.
+
+    `max_cost` is an optional USD budget. It's a soft cap: the run stops before
+    starting a task once cumulative spend has reached the budget, so actual
+    spend can exceed it by at most the one task that crossed the line. Free
+    (local) models never trip it.
+    """
     options = config.get("model_options", {})
     default_provider = config.get("default_provider", "ollama")
     results = []
+    total_cost = 0.0
     for suite in suites:
         for model_id in resolve_models(suite, config, cli_models):
             for task in suite.tasks:
+                if max_cost is not None and total_cost >= max_cost:
+                    print(f"  cost budget ${max_cost} reached "
+                          f"(spent ${round(total_cost, 6)}); stopping early")
+                    return results
                 print(f"  {suite.name} :: {model_id} :: {task.id}")
-                results.append(run_task(suite, task, model_id, default_provider,
-                                        options, deterministic_only))
+                result = run_task(suite, task, model_id, default_provider,
+                                  options, deterministic_only)
+                results.append(result)
+                total_cost += result.cost_usd
     return results

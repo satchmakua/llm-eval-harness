@@ -5,9 +5,10 @@ limitations that motivate it.
 
 ## Known limitations
 
-- **Partial test coverage.** Graders, gate logic, pricing, reporting, suite
-  loading, and the `provider:model` parser are unit-tested; `runner` and `cli`
-  are not yet.
+- **No end-to-end test against a live provider.** Unit coverage is broad
+  (graders, gate, pricing, reporting, suite loading, the `provider:model`
+  parser, retry/backoff, runner, and CLI), but nothing exercises a real model
+  call end to end.
 - **Sequential execution.** The runner makes one model call at a time, so large
   suites are latency-bound.
 - **Single-sample judging.** The LLM judge scores once with one model; score
@@ -17,14 +18,13 @@ limitations that motivate it.
 
 ## Near term
 
-- Cover the remaining modules in tests (`runner`, `cli`).
-- Optional cost-budget guardrail that aborts a run before it overspends.
+- Concurrent task execution (the runner is currently sequential).
+- Persist raw model outputs alongside the JSON report for debugging.
 
 ## Medium term
 
-- Concurrent task execution.
-- Persist raw model outputs for debugging.
 - Per-task diffs in the generated reports.
+- An end-to-end test against a stub HTTP server.
 
 ## Later
 

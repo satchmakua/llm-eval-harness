@@ -26,6 +26,8 @@ def _add_common(ap):
     ap.add_argument("--only", nargs="*", help="limit to named suites")
     ap.add_argument("--deterministic-only", action="store_true",
                     help="skip llm_judge graders (use in CI without judge access)")
+    ap.add_argument("--max-cost", type=float, default=None,
+                    help="stop the run once cumulative USD cost reaches this budget")
 
 
 def _text_table(rows):
@@ -71,6 +73,7 @@ def main(argv=None):
         suites, config,
         cli_models=args.models,
         deterministic_only=getattr(args, "deterministic_only", False),
+        max_cost=args.max_cost,
     )
 
     if args.cmd == "run":
