@@ -119,3 +119,29 @@ def test_md_report_shows_errored_task(tmp_path):
     results = [TaskResult(suite="s", task_id="boom", model="m", prompt="x", error="timeout")]
     md = Path(write_reports(results, tmp_path)["md"]).read_text(encoding="utf-8")
     assert "error: timeout" in md
+
+
+def test_pass_rate_ci_is_wide_at_small_n():
+    rows = summarize([TaskResult(suite="s", task_id="a", model="m",
+                                 grades=[GradeResult("c", passed=True)])])
+    row = rows[0]
+    assert row["pass_rate"] == 1.0
+    # 1/1 is wildly uncertain: the lower bound should be far below 1
+    assert 0.0 <= row["pass_rate_lo"] < 0.5
+    assert row["pass_rate_hi"] == 1.0
+    assert row["pass_rate_lo"] <= row["pass_rate"] <= row["pass_rate_hi"]
+
+
+def test_pass_rate_ci_tightens_with_more_samples():
+    many = [TaskResult(suite="s", task_id=f"t{i}", model="m",
+                       grades=[GradeResult("c", passed=True)]) for i in range(50)]
+    row = summarize(many)[0]
+    assert row["pass_rate"] == 1.0
+    assert row["pass_rate_lo"] > 0.9  # 50/50 is far more trustworthy than 1/1
+
+
+def test_pass_rate_ci_is_none_without_decided_tasks():
+    rows = summarize([TaskResult(suite="s", task_id="a", model="m", grades=[])])
+    row = rows[0]
+    assert row["pass_rate"] is None
+    assert row["pass_rate_lo"] is None and row["pass_rate_hi"] is None

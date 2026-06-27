@@ -13,7 +13,6 @@ limitations that motivate it.
 ## Near term
 
 - Judge ensembling / repeated sampling to quantify score variance.
-- Confidence intervals on small-N pass rates.
 
 ## Medium term
 

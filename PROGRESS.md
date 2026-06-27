@@ -16,8 +16,9 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
   per-task fault isolation, optional parallelism (`--concurrency`, results kept
   in stable order), and an optional `--max-cost` budget that stops a run before
   it overspends (`lmeval/runner.py`).
-- **Reporting** — per-(suite, model) summaries with pass rate, mean judge score,
-  token/cost totals, and p50/p95 latency (JSON, CSV, and a Markdown report that
+- **Reporting** — per-(suite, model) summaries with pass rate (and a 95% Wilson
+  confidence interval), mean judge score, token/cost totals, and p50/p95 latency
+  (JSON, CSV, and a Markdown report that
   also lists each failing task with its output and the graders that failed),
   plus a `transcripts-*.jsonl` with one self-contained record per task — input
   sent, model output, and grades — for debugging (`lmeval/report.py`).
@@ -32,7 +33,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - Deterministic and LLM-judge graders (`tests/test_graders.py`).
 - Gate and baseline logic (`tests/test_gate.py`).
 - Pricing calculations (`tests/test_pricing.py`).
-- Report aggregation and transcript artifacts (`tests/test_report.py`).
+- Report aggregation, pass-rate confidence intervals, and transcript artifacts
+  (`tests/test_report.py`).
 - Suite loading (`tests/test_suite.py`).
 - Provider registry and the `provider:model` parser (`tests/test_providers.py`).
 - HTTP retry/backoff helper (`tests/test_http_retry.py`).
@@ -44,4 +46,4 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 ## Not yet done
 
 Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: judge ensembling
-for score-variance estimates and confidence intervals on small-N pass rates.
+for score-variance estimates, additional providers, and an HTML results dashboard.

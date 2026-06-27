@@ -2,12 +2,14 @@
 
 import csv
 import json
+import math
 import statistics
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-SUMMARY_COLS = ["suite", "model", "tasks", "passed", "pass_rate", "mean_judge",
+SUMMARY_COLS = ["suite", "model", "tasks", "passed", "pass_rate",
+                "pass_rate_lo", "pass_rate_hi", "mean_judge",
                 "prompt_tokens", "completion_tokens", "cost_usd",
                 "p50_latency_s", "p95_latency_s"]
 
@@ -21,6 +23,7 @@ def summarize(results):
     for (suite, model), rs in sorted(groups.items()):
         verdicts = [x.verdict for x in rs if x.verdict is not None]
         passed = sum(1 for v in verdicts if v)
+        pass_lo, pass_hi = _wilson(passed, len(verdicts))
         judge_scores = [g.score for x in rs for g in x.grades
                         if g.grader == "llm_judge" and g.score is not None]
         latencies = [x.latency_s for x in rs if x.latency_s]
@@ -30,6 +33,8 @@ def summarize(results):
             "tasks": len(rs),
             "passed": passed,
             "pass_rate": round(passed / len(verdicts), 4) if verdicts else None,
+            "pass_rate_lo": pass_lo,
+            "pass_rate_hi": pass_hi,
             "mean_judge": round(statistics.mean(judge_scores), 2) if judge_scores else None,
             "prompt_tokens": sum(x.prompt_tokens for x in rs),
             "completion_tokens": sum(x.completion_tokens for x in rs),
@@ -49,6 +54,22 @@ def _percentile(xs, p):
     if lo + 1 < len(s):
         return s[lo] + (s[lo + 1] - s[lo]) * (k - lo)
     return s[lo]
+
+
+def _wilson(successes, n, z=1.96):
+    """Wilson score interval for a binomial proportion (95% by default).
+
+    More honest than the normal approximation at small n and extreme rates --
+    e.g. 1/1 gives roughly (0.21, 1.0), a useful "don't trust this yet" signal.
+    Returns (low, high) rounded, or (None, None) when there are no trials.
+    """
+    if n == 0:
+        return None, None
+    p = successes / n
+    denom = 1 + z * z / n
+    center = (p + z * z / (2 * n)) / denom
+    half = (z / denom) * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return round(max(0.0, center - half), 4), round(min(1.0, center + half), 4)
 
 
 def _md_table(rows):

@@ -55,8 +55,9 @@ lmeval run --only classification # just one suite
 lmeval run --models ollama:qwen2.5:7b
 ```
 
-Each run prints a summary table and writes four artifacts to `results/`: a
-machine-readable `run-*.json`, a `summary-*.csv` and `summary-*.md`, and a
+Each run prints a summary table (pass rate with a 95% Wilson confidence
+interval, mean judge score, cost, and p50/p95 latency) and writes four artifacts
+to `results/`: a machine-readable `run-*.json`, a `summary-*.csv` and `summary-*.md`, and a
 `transcripts-*.jsonl` with one self-contained record per task (the exact input
 sent, the model output, and the grades) — the thing you grep when a task fails.
 The `summary-*.md` also carries a **Failures** section listing each failing task

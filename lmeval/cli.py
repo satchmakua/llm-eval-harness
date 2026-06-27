@@ -37,7 +37,8 @@ def _text_table(rows):
         return "(no results)"
     return "\n".join(
         f"{r['suite']:<18} {r['model']:<26} "
-        f"pass={r['pass_rate']} judge={r['mean_judge']} "
+        f"pass={r['pass_rate']} ci=[{r['pass_rate_lo']},{r['pass_rate_hi']}] "
+        f"judge={r['mean_judge']} "
         f"cost=${r['cost_usd']} p50={r['p50_latency_s']}s p95={r['p95_latency_s']}s"
         for r in rows
     )
