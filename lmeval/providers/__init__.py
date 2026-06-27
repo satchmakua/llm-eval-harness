@@ -1,6 +1,7 @@
 """Provider registry and the 'provider:model' id parser."""
 
 from .anthropic import AnthropicProvider
+from .gemini import GeminiProvider
 from .ollama import OllamaProvider
 from .openai import OpenAIProvider
 
@@ -8,6 +9,7 @@ _REGISTRY = {
     "ollama": OllamaProvider,
     "openai": OpenAIProvider,
     "anthropic": AnthropicProvider,
+    "gemini": GeminiProvider,
 }
 
 _cache = {}

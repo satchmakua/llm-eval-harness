@@ -6,9 +6,9 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 
 - **Suite loading** — eval suites defined in YAML (`suites/*.yaml`), loaded into
   `Suite`/`Task` objects (`lmeval/suite.py`).
-- **Providers** — uniform raw-HTTP adapters for Ollama, OpenAI, and Anthropic
-  behind a single interface, addressed as `provider:model`. Hosted adapters
-  retry transient failures (HTTP 429 / 5xx, dropped connections) with
+- **Providers** — uniform raw-HTTP adapters for Ollama, OpenAI, Anthropic, and
+  Google Gemini behind a single interface, addressed as `provider:model`. Hosted
+  adapters retry transient failures (HTTP 429 / 5xx, dropped connections) with
   exponential backoff (`lmeval/providers/`).
 - **Graders** — deterministic (`exact`, `contains`, `regex`, `json_schema`) and
   an LLM-as-judge grader (`lmeval/graders/`).
@@ -26,8 +26,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - **Regression gating** — baseline snapshots plus relative-drop and absolute
   pass-rate floors, with a non-zero exit code on failure; wired into GitHub
   Actions (`lmeval/gate.py`, `.github/workflows/evals.yml`).
-- **Cost tracking** — current OpenAI and Anthropic token rates with a `$0`
-  fallback for local and unlisted models (`lmeval/pricing.py`).
+- **Cost tracking** — current OpenAI, Anthropic, and Google Gemini token rates
+  with a `$0` fallback for local and unlisted models (`lmeval/pricing.py`).
 
 ## Tested
 
@@ -42,11 +42,11 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - Runner, including the cost-budget guardrail and repeated-sampling vote
   (`tests/test_runner.py`).
 - CLI subcommands and exit codes (`tests/test_cli.py`).
-- End-to-end: a real provider adapter over a stub HTTP server, including
+- End-to-end: the OpenAI and Gemini adapters over a stub HTTP server, including
   retry/backoff (`tests/test_e2e.py`).
 
 ## Not yet done
 
-Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: additional
-providers (Gemini, Bedrock), judge ensembling across multiple judge models, and
-an HTML results dashboard.
+Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: an Amazon Bedrock
+adapter, judge ensembling across multiple judge models, and an HTML results
+dashboard.

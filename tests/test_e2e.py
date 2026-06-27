@@ -10,6 +10,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from lmeval import runner as runner_mod
+from lmeval.providers.gemini import GeminiProvider
 from lmeval.providers.openai import OpenAIProvider
 from lmeval.runner import run_suites
 from lmeval.types import Suite, Task
@@ -106,3 +107,45 @@ def test_openai_adapter_retries_over_socket(monkeypatch):
 
     assert comp.text == "ok"
     assert len(stub.requests) == 2  # adapter retried after the 503
+
+
+def _gemini_body(content, prompt_tokens=7, completion_tokens=2):
+    return {
+        "candidates": [{"content": {"role": "model", "parts": [{"text": content}]},
+                        "finishReason": "STOP"}],
+        "usageMetadata": {"promptTokenCount": prompt_tokens,
+                          "candidatesTokenCount": completion_tokens},
+    }
+
+
+def test_gemini_adapter_end_to_end(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g-key")
+    with StubServer([(200, _gemini_body("positive"))]) as stub:
+        provider = GeminiProvider(base_url=stub.base_url)
+        monkeypatch.setattr(runner_mod, "get_provider", lambda name, **kw: provider)
+        task = Task(id="t", prompt="classify: great!", system="be terse",
+                    graders=[{"type": "contains", "any_of": ["positive"]}])
+        suite = Suite(name="s", tasks=[task], models=["gemini:gemini-2.5-flash"])
+        results = run_suites([suite], {"default_provider": "ollama", "model_options": {}})
+
+    r = results[0]
+    assert r.output == "positive"
+    assert r.verdict is True
+    assert (r.prompt_tokens, r.completion_tokens) == (7, 2)
+    assert r.cost_usd > 0  # priced from PRICING for gemini:gemini-2.5-flash
+
+    sent = stub.requests[0]
+    assert "gemini-2.5-flash:generateContent" in sent["path"]
+    assert sent["headers"]["x-goog-api-key"] == "g-key"
+    # system prompt is hoisted to systemInstruction; the user role maps through
+    assert sent["body"]["systemInstruction"]["parts"][0]["text"] == "be terse"
+    assert sent["body"]["contents"][0]["role"] == "user"
+
+
+def test_gemini_adapter_handles_empty_candidates(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "g")
+    with StubServer([(200, {"candidates": []})]) as stub:
+        provider = GeminiProvider(base_url=stub.base_url)
+        comp = provider.complete("gemini-2.5-flash", [{"role": "user", "content": "hi"}])
+    assert comp.text == ""           # safety block / empty response -> empty text
+    assert comp.prompt_tokens == 0

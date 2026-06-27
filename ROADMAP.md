@@ -13,7 +13,8 @@ limitations that motivate it.
 
 ## Near term
 
-- Additional providers (e.g. Google Gemini, Amazon Bedrock).
+- An Amazon Bedrock adapter (needs AWS SigV4 signing, so a heavier add than the
+  REST/JSON providers — likely an optional `boto3` dependency).
 
 ## Medium term
 
