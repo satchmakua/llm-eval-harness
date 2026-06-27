@@ -30,6 +30,8 @@ def _add_common(ap):
                     help="stop the run once cumulative USD cost reaches this budget")
     ap.add_argument("--concurrency", type=int, default=1,
                     help="run up to N tasks in parallel (default 1 = sequential)")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="run each task N times; verdict is a majority vote (default 1)")
 
 
 def _text_table(rows):
@@ -78,6 +80,7 @@ def main(argv=None):
         deterministic_only=getattr(args, "deterministic_only", False),
         max_cost=args.max_cost,
         workers=args.concurrency,
+        repeat=args.repeat,
     )
 
     if args.cmd == "run":

@@ -5,16 +5,17 @@ limitations that motivate it.
 
 ## Known limitations
 
-- **Single-sample judging.** The LLM judge scores once with one model; score
-  variance is not measured, and small-N pass rates carry no confidence interval.
+- **Single judge model.** `--repeat` measures run-to-run variance, but
+  ensembling across *different* judge models (to reduce judge bias) isn't
+  supported yet.
 - **Partial `seed` support.** Only the OpenAI adapter forwards `seed`, so
   cross-provider reproducibility is best-effort.
 
 ## Near term
 
-- Judge ensembling / repeated sampling to quantify score variance.
+- Additional providers (e.g. Google Gemini, Amazon Bedrock).
 
 ## Medium term
 
-- Additional providers (e.g. Google Gemini, Amazon Bedrock).
+- Judge ensembling across multiple judge models.
 - An HTML dashboard over the JSON results.

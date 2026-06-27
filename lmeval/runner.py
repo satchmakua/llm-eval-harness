@@ -1,5 +1,6 @@
 """Run suites against models and collect scored, costed, timed results."""
 
+import statistics
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 from .graders import is_deterministic, run_grader
@@ -69,13 +70,49 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
     )
 
 
+def _run_task_sampled(suite, task, model_id, default_provider, options,
+                      deterministic_only, repeat):
+    """Run one task `repeat` times; collapse to a single majority-vote result.
+
+    `repeat == 1` returns the single run unchanged. Otherwise the runs are
+    summed (tokens, cost), averaged (latency), and voted (`pass_fraction`), with
+    the first run's input/output kept as a representative sample.
+    """
+    runs = [run_task(suite, task, model_id, default_provider, options, deterministic_only)
+            for _ in range(repeat)]
+    if repeat == 1:
+        return runs[0]
+    decided = [r.verdict for r in runs if r.verdict is not None]
+    pass_fraction = round(sum(decided) / len(decided), 4) if decided else None
+    first = runs[0]
+    return TaskResult(
+        suite=first.suite,
+        task_id=first.task_id,
+        model=first.model,
+        system=first.system,
+        prompt=first.prompt,
+        output=first.output,
+        prompt_tokens=sum(r.prompt_tokens for r in runs),
+        completion_tokens=sum(r.completion_tokens for r in runs),
+        cost_usd=round(sum(r.cost_usd for r in runs), 6),
+        latency_s=round(statistics.mean([r.latency_s for r in runs]), 3),
+        grades=first.grades,
+        error=first.error if all(r.error for r in runs) else None,
+        samples=repeat,
+        pass_fraction=pass_fraction,
+    )
+
+
 def run_suites(suites, config, cli_models=None, deterministic_only=False,
-               max_cost=None, workers=1):
+               max_cost=None, workers=1, repeat=1):
     """Run every (suite, model, task) and collect results.
 
     `workers` runs that many tasks in parallel (default 1 = sequential). Each
     task is one HTTP call, so this is I/O-bound and parallelizes well; results
     are returned in suite/model/task order regardless of completion order.
+
+    `repeat` runs each task that many times and collapses the runs into one
+    majority-vote verdict plus a `pass_fraction`, for measuring variance.
 
     `max_cost` is an optional USD budget. It's a soft cap: no new task is started
     once cumulative spend has reached the budget. With `workers > 1`, up to
@@ -108,8 +145,9 @@ def run_suites(suites, config, cli_models=None, deterministic_only=False,
             while len(pending) < workers and next_idx < len(work) and not over_budget():
                 suite, model_id, task = work[next_idx]
                 print(f"  {suite.name} :: {model_id} :: {task.id}")
-                future = pool.submit(run_task, suite, task, model_id,
-                                     default_provider, options, deterministic_only)
+                future = pool.submit(_run_task_sampled, suite, task, model_id,
+                                     default_provider, options, deterministic_only,
+                                     repeat)
                 pending[future] = next_idx
                 next_idx += 1
 

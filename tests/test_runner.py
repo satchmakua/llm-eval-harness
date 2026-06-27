@@ -4,8 +4,10 @@ from lmeval.types import Completion, Suite, Task
 
 
 class FakeProvider:
-    def __init__(self, text="positive", prompt_tokens=10, completion_tokens=5, raises=None):
+    def __init__(self, text="positive", prompt_tokens=10, completion_tokens=5,
+                 raises=None, texts=None):
         self.text = text
+        self.texts = list(texts) if texts else None  # cycle these per call, if given
         self.prompt_tokens = prompt_tokens
         self.completion_tokens = completion_tokens
         self.raises = raises
@@ -15,7 +17,11 @@ class FakeProvider:
         self.calls.append((model, messages, options))
         if self.raises:
             raise self.raises
-        return Completion(text=self.text, model=model, provider="fake",
+        if self.texts is not None:
+            text = self.texts[(len(self.calls) - 1) % len(self.texts)]
+        else:
+            text = self.text
+        return Completion(text=text, model=model, provider="fake",
                           prompt_tokens=self.prompt_tokens,
                           completion_tokens=self.completion_tokens, latency_s=0.01)
 
@@ -98,6 +104,37 @@ def test_cost_budget_ignores_free_models(monkeypatch):
     results = run_suites([suite], {"default_provider": "ollama", "model_options": {}},
                          max_cost=0.01)
     assert len(results) == 3  # local models cost $0, so the budget never trips
+
+
+def test_repeat_majority_vote_pass(monkeypatch):
+    _use(monkeypatch, FakeProvider(texts=["positive", "no", "positive"]))
+    task = Task(id="t", prompt="x", graders=[_contains("positive")])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}}, repeat=3)[0]
+    assert r.samples == 3
+    assert r.pass_fraction == round(2 / 3, 4)
+    assert r.verdict is True                              # 2/3 majority passed
+    assert (r.prompt_tokens, r.completion_tokens) == (30, 15)  # summed across runs
+
+
+def test_repeat_majority_vote_fail(monkeypatch):
+    _use(monkeypatch, FakeProvider(texts=["no", "no", "positive"]))
+    task = Task(id="t", prompt="x", graders=[_contains("positive")])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}}, repeat=3)[0]
+    assert r.pass_fraction == round(1 / 3, 4)
+    assert r.verdict is False                             # minority passed
+    assert r.samples == 3
+
+
+def test_repeat_one_is_unchanged(monkeypatch):
+    _use(monkeypatch, FakeProvider(text="positive"))
+    task = Task(id="t", prompt="x", graders=[_contains("positive")])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}}, repeat=1)[0]
+    assert r.samples == 1
+    assert r.pass_fraction is None
+    assert r.verdict is True
 
 
 def test_concurrency_runs_all_tasks_in_order(monkeypatch):

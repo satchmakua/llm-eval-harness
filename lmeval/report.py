@@ -95,6 +95,8 @@ def _failures_md(results, max_items=50):
     blocks = []
     for r in failed[:max_items]:
         lines = [f"### {r.suite} :: {r.task_id} :: {r.model}"]
+        if r.samples > 1 and r.pass_fraction is not None:
+            lines.append(f"- samples: {r.samples}, pass fraction: {r.pass_fraction}")
         if r.prompt:
             lines.append(f"- prompt: {_preview(r.prompt)}")
         if r.error:
@@ -108,6 +110,18 @@ def _failures_md(results, max_items=50):
     if hidden > 0:
         blocks.append(f"_... and {hidden} more failing tasks (see transcripts)._")
     return "\n\n".join(blocks)
+
+
+def _flaky_md(results):
+    """Tasks whose pass/fail flipped across repeated samples (with --repeat > 1)."""
+    flaky = [r for r in results
+             if r.samples > 1 and r.pass_fraction is not None
+             and 0.0 < r.pass_fraction < 1.0]
+    return "\n".join(
+        f"- {r.suite} :: {r.task_id} :: {r.model} — "
+        f"pass fraction {r.pass_fraction} across {r.samples} runs"
+        for r in flaky
+    )
 
 
 def write_reports(results, out_dir):
@@ -127,10 +141,12 @@ def write_reports(results, out_dir):
         writer.writerows(rows)
 
     md_path = out / f"summary-{stamp}.md"
-    md_path.write_text(
-        f"# Eval run -- {stamp}\n\n{_md_table(rows)}\n\n"
-        f"## Failures\n\n{_failures_md(results)}\n",
-        encoding="utf-8")
+    sections = [f"# Eval run -- {stamp}", _md_table(rows),
+                "## Failures", _failures_md(results)]
+    flaky = _flaky_md(results)
+    if flaky:
+        sections += ["## Flaky tasks", flaky]
+    md_path.write_text("\n\n".join(sections) + "\n", encoding="utf-8")
 
     # Per-task transcripts (input, output, grades) as JSONL -- the artifact you
     # grep when a task fails and you need to see exactly what was sent and got back.

@@ -45,7 +45,7 @@ def test_no_suites_returns_1(tmp_path, monkeypatch):
     assert rc == 1
 
 
-def test_run_forwards_max_cost(tmp_path, monkeypatch):
+def test_run_forwards_run_options(tmp_path, monkeypatch):
     captured = {}
 
     def fake_run(suites, config, **kw):
@@ -53,8 +53,11 @@ def test_run_forwards_max_cost(tmp_path, monkeypatch):
         return _results()
 
     monkeypatch.setattr(cli, "run_suites", fake_run)
-    cli.main(["run", *_common(tmp_path), "--out", str(tmp_path / "out"), "--max-cost", "1.5"])
+    cli.main(["run", *_common(tmp_path), "--out", str(tmp_path / "out"),
+              "--max-cost", "1.5", "--concurrency", "3", "--repeat", "4"])
     assert captured["max_cost"] == 1.5
+    assert captured["workers"] == 3
+    assert captured["repeat"] == 4
 
 
 def test_baseline_saves_file(tmp_path, monkeypatch):

@@ -105,6 +105,11 @@ Pass `--concurrency <N>` to run up to N tasks in parallel (default 1). Each task
 is a single HTTP call, so this is I/O-bound work that parallelizes well;
 results are still reported in a stable suite/model/task order.
 
+Pass `--repeat <N>` to run each task N times; the verdict becomes a majority
+vote across the runs, and the report shows each task's pass fraction and flags
+any whose result flips. Set a non-zero `temperature` in config for this to
+surface real variance — at `temperature: 0` the runs are identical.
+
 ## Adding a suite
 
 Drop a YAML file in `suites/`:

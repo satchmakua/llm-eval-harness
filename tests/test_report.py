@@ -145,3 +145,19 @@ def test_pass_rate_ci_is_none_without_decided_tasks():
     row = rows[0]
     assert row["pass_rate"] is None
     assert row["pass_rate_lo"] is None and row["pass_rate_hi"] is None
+
+
+def test_md_report_flags_flaky_tasks(tmp_path):
+    results = [TaskResult(suite="s", task_id="flaky", model="m", output="x",
+                          grades=[GradeResult("c", passed=True)],
+                          samples=4, pass_fraction=0.5)]
+    md = Path(write_reports(results, tmp_path)["md"]).read_text(encoding="utf-8")
+    assert "## Flaky tasks" in md
+    assert "pass fraction 0.5 across 4 runs" in md
+
+
+def test_md_report_no_flaky_section_when_consistent(tmp_path):
+    results = [TaskResult(suite="s", task_id="ok", model="m",
+                          grades=[GradeResult("c", passed=True)])]
+    md = Path(write_reports(results, tmp_path)["md"]).read_text(encoding="utf-8")
+    assert "## Flaky tasks" not in md
