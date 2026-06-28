@@ -10,14 +10,16 @@ limitations that motivate it.
 - **Judge token counts aren't broken out.** Judge calls are priced into
   `judge_cost_usd`, but their tokens aren't added to the token columns (those
   stay the task model's).
+- **Bedrock signing isn't exercised against live AWS.** The SigV4 signer is
+  verified against the official AWS test vector and the request shape is
+  stub-tested, but there are no AWS credentials available here to run a real
+  call end to end.
 
 ## Near term
 
-- An Amazon Bedrock adapter (needs AWS SigV4 signing, so a heavier add than the
-  REST/JSON providers — likely an optional `boto3` dependency).
+- Cache identical (model, prompt) completions within a run to avoid paying for
+  duplicates.
 
 ## Medium term
 
-- Cache identical (model, prompt) completions within a run to avoid paying for
-  duplicates.
 - Per-tag/category score breakdowns in the report.

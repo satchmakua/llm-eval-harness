@@ -26,6 +26,12 @@ PRICING = {
     "gemini:gemini-2.5-pro": (1.25, 10.00),
     "gemini:gemini-2.5-flash": (0.30, 2.50),
     "gemini:gemini-2.5-flash-lite": (0.10, 0.40),
+    # Amazon Bedrock (Anthropic models) -- https://aws.amazon.com/bedrock/pricing/
+    # On-demand Bedrock pricing matches first-party Anthropic list price; verify
+    # per region, and note ids may carry an inference-profile prefix (e.g. "us.").
+    "bedrock:anthropic.claude-opus-4-8": (5.00, 25.00),
+    "bedrock:anthropic.claude-sonnet-4-6": (3.00, 15.00),
+    "bedrock:anthropic.claude-haiku-4-5": (1.00, 5.00),
 }
 
 

@@ -10,6 +10,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from lmeval import runner as runner_mod
+from lmeval.providers.bedrock import BedrockProvider, sigv4_headers
 from lmeval.providers.gemini import GeminiProvider
 from lmeval.providers.openai import OpenAIProvider
 from lmeval.runner import run_suites
@@ -149,3 +150,65 @@ def test_gemini_adapter_handles_empty_candidates(monkeypatch):
         comp = provider.complete("gemini-2.5-flash", [{"role": "user", "content": "hi"}])
     assert comp.text == ""           # safety block / empty response -> empty text
     assert comp.prompt_tokens == 0
+
+
+def test_sigv4_matches_aws_get_vanilla_vector():
+    # Official AWS SigV4 test-suite "get-vanilla" known answer (verified against
+    # github.com/saibotsivad/aws-sig-v4-test-suite). If this drifts, the signer
+    # is wrong -- do not "fix" the expected value.
+    headers = sigv4_headers(
+        "GET", "https://example.amazonaws.com/",
+        region="us-east-1", service="service",
+        access_key="AKIDEXAMPLE",
+        secret_key="wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+        body=b"", amz_date="20150830T123600Z",
+    )
+    assert headers["Authorization"] == (
+        "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/service/aws4_request, "
+        "SignedHeaders=host;x-amz-date, "
+        "Signature=5fa00fa31553b73ebf1942676e86291e8372ff2a2260956d9b8aae1d763fbf31"
+    )
+    assert headers["X-Amz-Date"] == "20150830T123600Z"
+
+
+def test_sigv4_includes_session_token_when_present():
+    headers = sigv4_headers(
+        "POST", "https://bedrock-runtime.us-east-1.amazonaws.com/model/m/invoke",
+        region="us-east-1", access_key="AKID", secret_key="secret",
+        body=b"{}", amz_date="20150830T123600Z", session_token="tok123",
+    )
+    assert headers["X-Amz-Security-Token"] == "tok123"
+
+
+def _bedrock_body(content, input_tokens=9, output_tokens=3):
+    return {"content": [{"type": "text", "text": content}],
+            "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens}}
+
+
+def test_bedrock_adapter_end_to_end(monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIDEXAMPLE")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("AWS_REGION", "us-east-1")
+    with StubServer([(200, _bedrock_body("positive"))]) as stub:
+        provider = BedrockProvider(base_url=stub.base_url)
+        monkeypatch.setattr(runner_mod, "get_provider", lambda name, **kw: provider)
+        task = Task(id="t", prompt="classify: great!", system="be terse",
+                    graders=[{"type": "contains", "any_of": ["positive"]}])
+        suite = Suite(name="s", tasks=[task],
+                      models=["bedrock:anthropic.claude-haiku-4-5"])
+        results = run_suites([suite], {"default_provider": "ollama", "model_options": {}})
+
+    r = results[0]
+    assert r.output == "positive"
+    assert r.verdict is True
+    assert (r.prompt_tokens, r.completion_tokens) == (9, 3)
+    assert r.cost_usd > 0  # priced from PRICING
+
+    sent = stub.requests[0]
+    assert "/model/anthropic.claude-haiku-4-5/invoke" in sent["path"]
+    assert sent["headers"]["Authorization"].startswith("AWS4-HMAC-SHA256 ")
+    assert "X-Amz-Date" in sent["headers"]
+    # Anthropic-on-Bedrock body shape: version + hoisted system + messages
+    assert sent["body"]["anthropic_version"] == "bedrock-2023-05-31"
+    assert sent["body"]["system"] == "be terse"
+    assert sent["body"]["messages"][0]["role"] == "user"

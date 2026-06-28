@@ -25,15 +25,15 @@ an LLM judge, gate regressions in CI, and track cost and latency per model.
   an absolute floor. Wired into GitHub Actions.
 - **Cost & latency tracking** — token counts, USD cost per model (from an
   editable pricing table), and p50/p95 latency, aggregated per suite and model.
-- **Provider-agnostic** — one interface, four adapters: **Ollama** (local,
-  zero-config, free), **OpenAI**, **Anthropic**, and **Google Gemini**. Models
-  are addressed as `provider:model`, e.g. `ollama:llama3.1:8b` or
-  `openai:gpt-4o-mini`.
+- **Provider-agnostic** — one interface, five adapters: **Ollama** (local,
+  zero-config, free), **OpenAI**, **Anthropic**, **Google Gemini**, and **Amazon
+  Bedrock** (Anthropic models, SigV4-signed). Models are addressed as
+  `provider:model`, e.g. `ollama:llama3.1:8b` or `openai:gpt-4o-mini`.
 
 ## How it fits together
 
 ```
-suites/*.yaml ─► suite loader ─► runner ─► providers (ollama|openai|anthropic|gemini)
+suites/*.yaml ─► suite loader ─► runner ─► providers (ollama|openai|anthropic|gemini|bedrock)
                                    │
                                    ├─► graders (deterministic + llm-judge)
                                    ├─► pricing (tokens ─► USD)
@@ -93,11 +93,13 @@ to gate on; run those locally or on a schedule.
 | OpenAI      | `openai:`     | per token   | `OPENAI_API_KEY`     |
 | Anthropic   | `anthropic:`  | per token   | `ANTHROPIC_API_KEY`  |
 | Gemini      | `gemini:`     | per token   | `GEMINI_API_KEY`     |
+| Bedrock     | `bedrock:`    | per token   | AWS creds + region (env) |
 
 Cost is computed from `lmeval/pricing.py`, which ships current OpenAI, Anthropic,
-and Google Gemini rates (verified 2026-06-27 against each provider's pricing
-page). Provider pricing drifts over time, so re-check it periodically. Any model
-not listed there — including every local Ollama model — is counted as $0.
+Google Gemini, and Amazon Bedrock (Anthropic) rates (verified 2026-06-27 against
+each provider's pricing page; Bedrock matches first-party Anthropic list price).
+Provider pricing drifts over time, so re-check it periodically. Any model not
+listed there — including every local Ollama model — is counted as $0.
 
 LLM-judge calls are priced too: each judge invocation (including every member of
 an ensemble) is added to the task's cost, so `--max-cost` and the reported
@@ -167,9 +169,10 @@ score — judge ensembling, to reduce single-model bias.
 3. `lmeval/runner.py` — the core loop: every (suite × model × task) becomes one
    `TaskResult`. The single most important file.
 4. `lmeval/providers/` — `base.py` is the one-method interface; `ollama.py`,
-   `openai.py`, `anthropic.py`, `gemini.py` are uniform raw-HTTP adapters (hosted
-   ones retry transient failures via `_http.py`); `__init__.py` holds the
-   registry and the `provider:model` id parser.
+   `openai.py`, `anthropic.py`, `gemini.py`, `bedrock.py` are uniform raw-HTTP
+   adapters (hosted ones retry transient failures via `_http.py`; Bedrock adds
+   SigV4 signing); `__init__.py` holds the registry and the `provider:model`
+   id parser.
 5. `lmeval/graders/` — `deterministic.py` (`exact`, `contains`, `regex`,
    `json_schema`) and `llm_judge.py` (a second model scores 1–5 against a rubric).
 6. `lmeval/report.py` then `lmeval/gate.py` — aggregation into per-(suite, model)
