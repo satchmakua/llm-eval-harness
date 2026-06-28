@@ -21,6 +21,13 @@ def _make_judge_fn(judge_model_id, default_provider):
     return judge_fn
 
 
+def _judge_model_ids(spec, fallback):
+    """Judge model id(s) for an llm_judge spec: `judge_models` list, a single
+    `judge_model`, or the task's own model as a fallback. Always a list."""
+    models = spec.get("judge_models") or spec.get("judge_model") or fallback
+    return [models] if isinstance(models, str) else list(models)
+
+
 def resolve_models(suite, config, cli_models):
     """CLI override > suite's own models > config default_models."""
     if cli_models:
@@ -50,10 +57,11 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
     for spec in task.graders:
         if deterministic_only and not is_deterministic(spec):
             continue
-        judge_fn = None
+        judge_fns = None
         if spec.get("type") == "llm_judge":
-            judge_fn = _make_judge_fn(spec.get("judge_model", model_id), default_provider)
-        grades.append(run_grader(spec, comp.text, judge_fn=judge_fn))
+            judge_fns = [_make_judge_fn(jid, default_provider)
+                         for jid in _judge_model_ids(spec, model_id)]
+        grades.append(run_grader(spec, comp.text, judge_fns=judge_fns))
 
     return TaskResult(
         suite=suite.name,

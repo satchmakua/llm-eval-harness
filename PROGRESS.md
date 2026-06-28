@@ -11,7 +11,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
   adapters retry transient failures (HTTP 429 / 5xx, dropped connections) with
   exponential backoff (`lmeval/providers/`).
 - **Graders** — deterministic (`exact`, `contains`, `regex`, `json_schema`) and
-  an LLM-as-judge grader (`lmeval/graders/`).
+  an LLM-as-judge grader that can ensemble across multiple judge models (mean
+  score) (`lmeval/graders/`).
 - **Runner** — executes every (suite × model × task) into a `TaskResult`, with
   per-task fault isolation, optional parallelism (`--concurrency`, results kept
   in stable order), optional repeated sampling (`--repeat`, majority-vote
@@ -31,7 +32,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 
 ## Tested
 
-- Deterministic and LLM-judge graders (`tests/test_graders.py`).
+- Deterministic and LLM-judge graders, including judge ensembling
+  (`tests/test_graders.py`).
 - Gate and baseline logic (`tests/test_gate.py`).
 - Pricing calculations (`tests/test_pricing.py`).
 - Report aggregation, pass-rate confidence intervals, and transcript artifacts
@@ -47,6 +49,5 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 
 ## Not yet done
 
-Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: an Amazon Bedrock
-adapter, judge ensembling across multiple judge models, and an HTML results
-dashboard.
+Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: tracking
+LLM-judge call cost, an Amazon Bedrock adapter, and an HTML results dashboard.

@@ -17,8 +17,9 @@ an LLM judge, gate regressions in CI, and track cost and latency per model.
 - **Two kinds of graders**
   - *Deterministic*: `exact`, `contains`, `regex`, `json_schema`. Reproducible,
     free, and safe to run in CI.
-  - *LLM-as-judge*: a second model scores the output 1-5 against a rubric, for
-    subjective qualities (faithfulness, tone) that string matching can't see.
+  - *LLM-as-judge*: a second model (or several, ensembled) scores the output 1-5
+    against a rubric, for subjective qualities (faithfulness, tone) that string
+    matching can't see.
 - **Regression gating** — snapshot a baseline, then fail a run (non-zero exit)
   if any suite's pass rate drops below the baseline (with optional tolerance) or
   an absolute floor. Wired into GitHub Actions.
@@ -144,6 +145,10 @@ tasks:
 | `regex`       | `pattern` matches the output                               |
 | `json_schema` | output is valid JSON, optionally matching `schema`         |
 | `llm_judge`   | a judge model scores >= `pass_threshold` against `rubric`  |
+
+`llm_judge` takes either a single `judge_model` or a list via `judge_models`;
+with several, each scores independently and the task passes on the **mean**
+score — judge ensembling, to reduce single-model bias.
 
 ## Understanding the codebase
 

@@ -137,6 +137,22 @@ def test_repeat_one_is_unchanged(monkeypatch):
     assert r.verdict is True
 
 
+def test_llm_judge_ensemble_runs_each_judge_model(monkeypatch):
+    # the same fake answers the task call and every judge call
+    fake = FakeProvider(text='{"score": 5, "rationale": "ok"}')
+    _use(monkeypatch, fake)
+    task = Task(id="t", prompt="x", graders=[
+        {"type": "llm_judge", "rubric": "r", "pass_threshold": 4,
+         "judge_models": ["openai:gpt-4o", "anthropic:claude-haiku-4-5"]},
+    ])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}})[0]
+    judge_grade = next(g for g in r.grades if g.grader == "llm_judge")
+    assert judge_grade.score == 5.0
+    assert judge_grade.passed is True
+    assert len(fake.calls) == 3  # 1 task completion + 2 judge calls
+
+
 def test_concurrency_runs_all_tasks_in_order(monkeypatch):
     _use(monkeypatch, FakeProvider(text="positive"))
     tasks = [Task(id=f"t{i}", prompt="x", graders=[_contains("positive")]) for i in range(6)]

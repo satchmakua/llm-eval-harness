@@ -10,11 +10,11 @@ _GRADERS["llm_judge"] = grade_llm_judge
 DETERMINISTIC_TYPES = set(DETERMINISTIC)
 
 
-def run_grader(spec, output, judge_fn=None):
+def run_grader(spec, output, judge_fn=None, judge_fns=None):
     fn = _GRADERS.get(spec.get("type"))
     if fn is None:
         return GradeResult(spec.get("type", "?"), passed=None, detail="unknown grader")
-    return fn(output, spec, judge_fn=judge_fn)
+    return fn(output, spec, judge_fn=judge_fn, judge_fns=judge_fns)
 
 
 def is_deterministic(spec):

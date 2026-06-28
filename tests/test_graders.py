@@ -54,6 +54,34 @@ def test_llm_judge_unparseable_is_none():
     assert r.passed is None
 
 
+def test_llm_judge_ensemble_averages_scores():
+    r = run_grader(
+        {"type": "llm_judge", "rubric": "x", "pass_threshold": 4}, "out",
+        judge_fns=[lambda p: '{"score": 5, "rationale": "a"}',
+                   lambda p: '{"score": 3, "rationale": "b"}'],
+    )
+    assert r.score == 4.0      # mean of 5 and 3
+    assert r.passed is True    # 4.0 >= 4
+
+
+def test_llm_judge_ensemble_below_threshold_fails():
+    r = run_grader(
+        {"type": "llm_judge", "rubric": "x", "pass_threshold": 4}, "out",
+        judge_fns=[lambda p: '{"score": 5}', lambda p: '{"score": 2}'],
+    )
+    assert r.score == 3.5
+    assert r.passed is False
+
+
+def test_llm_judge_ensemble_skips_unparseable_members():
+    r = run_grader(
+        {"type": "llm_judge", "rubric": "x", "pass_threshold": 4}, "out",
+        judge_fns=[lambda p: "garbage", lambda p: '{"score": 5}'],
+    )
+    assert r.score == 5.0      # only the parseable judge counts
+    assert r.passed is True
+
+
 def test_is_deterministic():
     assert is_deterministic({"type": "contains"}) is True
     assert is_deterministic({"type": "llm_judge"}) is False
