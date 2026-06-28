@@ -9,13 +9,16 @@ from .providers import get_provider, parse_model_id
 from .types import TaskResult
 
 
-def _make_judge_fn(judge_model_id, default_provider):
+def _make_judge_fn(judge_model_id, default_provider, on_cost=None):
     prov_name, model = parse_model_id(judge_model_id, default_provider)
+    full_id = f"{prov_name}:{model}"
     provider = get_provider(prov_name)
 
     def judge_fn(prompt):
         comp = provider.complete(model, [{"role": "user", "content": prompt}],
                                  options={"temperature": 0})
+        if on_cost is not None:
+            on_cost(cost_usd(full_id, comp.prompt_tokens, comp.completion_tokens))
         return comp.text
 
     return judge_fn
@@ -53,16 +56,19 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
         return TaskResult(suite=suite.name, task_id=task.id, model=full_id,
                           system=task.system, prompt=task.prompt, error=str(exc))
 
+    judge_costs = []  # one entry per judge call, summed into the task's cost
     grades = []
     for spec in task.graders:
         if deterministic_only and not is_deterministic(spec):
             continue
         judge_fns = None
         if spec.get("type") == "llm_judge":
-            judge_fns = [_make_judge_fn(jid, default_provider)
+            judge_fns = [_make_judge_fn(jid, default_provider, judge_costs.append)
                          for jid in _judge_model_ids(spec, model_id)]
         grades.append(run_grader(spec, comp.text, judge_fns=judge_fns))
 
+    task_cost = cost_usd(full_id, comp.prompt_tokens, comp.completion_tokens)
+    judge_cost = round(sum(judge_costs), 6)
     return TaskResult(
         suite=suite.name,
         task_id=task.id,
@@ -72,7 +78,8 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
         output=comp.text,
         prompt_tokens=comp.prompt_tokens,
         completion_tokens=comp.completion_tokens,
-        cost_usd=cost_usd(full_id, comp.prompt_tokens, comp.completion_tokens),
+        cost_usd=round(task_cost + judge_cost, 6),
+        judge_cost_usd=judge_cost,
         latency_s=comp.latency_s,
         grades=grades,
     )
@@ -103,6 +110,7 @@ def _run_task_sampled(suite, task, model_id, default_provider, options,
         prompt_tokens=sum(r.prompt_tokens for r in runs),
         completion_tokens=sum(r.completion_tokens for r in runs),
         cost_usd=round(sum(r.cost_usd for r in runs), 6),
+        judge_cost_usd=round(sum(r.judge_cost_usd for r in runs), 6),
         latency_s=round(statistics.mean([r.latency_s for r in runs]), 3),
         grades=first.grades,
         error=first.error if all(r.error for r in runs) else None,

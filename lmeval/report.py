@@ -10,7 +10,7 @@ from pathlib import Path
 
 SUMMARY_COLS = ["suite", "model", "tasks", "passed", "pass_rate",
                 "pass_rate_lo", "pass_rate_hi", "mean_judge",
-                "prompt_tokens", "completion_tokens", "cost_usd",
+                "prompt_tokens", "completion_tokens", "cost_usd", "judge_cost_usd",
                 "p50_latency_s", "p95_latency_s"]
 
 
@@ -39,6 +39,7 @@ def summarize(results):
             "prompt_tokens": sum(x.prompt_tokens for x in rs),
             "completion_tokens": sum(x.completion_tokens for x in rs),
             "cost_usd": round(sum(x.cost_usd for x in rs), 6),
+            "judge_cost_usd": round(sum(x.judge_cost_usd for x in rs), 6),
             "p50_latency_s": round(statistics.median(latencies), 3) if latencies else None,
             "p95_latency_s": round(_percentile(latencies, 95), 3) if latencies else None,
         })

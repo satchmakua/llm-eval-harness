@@ -98,6 +98,10 @@ and Google Gemini rates (verified 2026-06-27 against each provider's pricing
 page). Provider pricing drifts over time, so re-check it periodically. Any model
 not listed there — including every local Ollama model — is counted as $0.
 
+LLM-judge calls are priced too: each judge invocation (including every member of
+an ensemble) is added to the task's cost, so `--max-cost` and the reported
+totals account for judge spend. The `judge_cost_usd` column breaks it out.
+
 Pass `--max-cost <USD>` to any command to cap spend: the run stops before
 starting the next task once cumulative cost reaches the budget. It's a soft cap
 (actual spend can exceed it by at most the one task that crosses the line, or by

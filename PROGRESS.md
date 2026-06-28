@@ -28,7 +28,9 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
   pass-rate floors, with a non-zero exit code on failure; wired into GitHub
   Actions (`lmeval/gate.py`, `.github/workflows/evals.yml`).
 - **Cost tracking** — current OpenAI, Anthropic, and Google Gemini token rates
-  with a `$0` fallback for local and unlisted models (`lmeval/pricing.py`).
+  with a `$0` fallback for local and unlisted models; LLM-judge calls are priced
+  and folded into each task's cost, broken out as `judge_cost_usd`
+  (`lmeval/pricing.py`, `lmeval/runner.py`).
 
 ## Tested
 
@@ -41,13 +43,13 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - Suite loading (`tests/test_suite.py`).
 - Provider registry and the `provider:model` parser (`tests/test_providers.py`).
 - HTTP retry/backoff helper (`tests/test_http_retry.py`).
-- Runner, including the cost-budget guardrail and repeated-sampling vote
-  (`tests/test_runner.py`).
+- Runner, including the cost-budget guardrail, repeated-sampling vote, and
+  judge-cost tracking (`tests/test_runner.py`).
 - CLI subcommands and exit codes (`tests/test_cli.py`).
 - End-to-end: the OpenAI and Gemini adapters over a stub HTTP server, including
   retry/backoff (`tests/test_e2e.py`).
 
 ## Not yet done
 
-Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: tracking
-LLM-judge call cost, an Amazon Bedrock adapter, and an HTML results dashboard.
+Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: an Amazon Bedrock
+adapter and an HTML dashboard over the JSON results.

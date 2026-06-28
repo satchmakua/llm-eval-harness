@@ -65,6 +65,7 @@ class TaskResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     cost_usd: float = 0.0
+    judge_cost_usd: float = 0.0
     latency_s: float = 0.0
     grades: list = field(default_factory=list)
     error: Optional[str] = None

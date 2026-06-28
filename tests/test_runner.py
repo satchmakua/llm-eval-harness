@@ -1,4 +1,5 @@
 from lmeval import runner as runner_mod
+from lmeval.pricing import cost_usd
 from lmeval.runner import resolve_models, run_suites, run_task
 from lmeval.types import Completion, Suite, Task
 
@@ -151,6 +152,43 @@ def test_llm_judge_ensemble_runs_each_judge_model(monkeypatch):
     assert judge_grade.score == 5.0
     assert judge_grade.passed is True
     assert len(fake.calls) == 3  # 1 task completion + 2 judge calls
+
+
+def test_judge_cost_is_tracked_and_folded_into_total(monkeypatch):
+    fake = FakeProvider(text='{"score": 5}')
+    _use(monkeypatch, fake)
+    task = Task(id="t", prompt="x", graders=[
+        {"type": "llm_judge", "rubric": "r", "judge_model": "openai:gpt-4o"},
+    ])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}})[0]
+    one_call = cost_usd("openai:gpt-4o", 10, 5)
+    assert r.judge_cost_usd == one_call               # one judge call
+    assert r.cost_usd == round(one_call * 2, 6)        # task model + judge
+
+
+def test_judge_cost_zero_for_local_judge(monkeypatch):
+    fake = FakeProvider(text='{"score": 5}')
+    _use(monkeypatch, fake)
+    task = Task(id="t", prompt="x", graders=[
+        {"type": "llm_judge", "rubric": "r", "judge_model": "ollama:llama3.1:8b"},
+    ])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}})[0]
+    assert r.judge_cost_usd == 0.0                     # local judge is free
+    assert r.cost_usd == cost_usd("openai:gpt-4o", 10, 5)  # only the task model
+
+
+def test_judge_cost_sums_across_ensemble(monkeypatch):
+    fake = FakeProvider(text='{"score": 5}')
+    _use(monkeypatch, fake)
+    task = Task(id="t", prompt="x", graders=[
+        {"type": "llm_judge", "rubric": "r",
+         "judge_models": ["openai:gpt-4o", "openai:gpt-4o"]},
+    ])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    r = run_suites([suite], {"default_provider": "ollama", "model_options": {}})[0]
+    assert r.judge_cost_usd == round(cost_usd("openai:gpt-4o", 10, 5) * 2, 6)
 
 
 def test_concurrency_runs_all_tasks_in_order(monkeypatch):

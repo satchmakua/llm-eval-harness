@@ -54,6 +54,17 @@ def test_summarize_splits_by_suite_and_model():
     assert {(r["suite"], r["model"]) for r in rows} == {("s1", "m"), ("s2", "m")}
 
 
+def test_summarize_sums_judge_cost():
+    rows = summarize([
+        TaskResult(suite="s", task_id="a", model="m", cost_usd=0.003, judge_cost_usd=0.001,
+                   grades=[GradeResult("llm_judge", passed=True, score=5.0)]),
+        TaskResult(suite="s", task_id="b", model="m", cost_usd=0.002, judge_cost_usd=0.001,
+                   grades=[GradeResult("llm_judge", passed=True, score=4.0)]),
+    ])
+    assert rows[0]["cost_usd"] == 0.005
+    assert rows[0]["judge_cost_usd"] == 0.002
+
+
 def test_summarize_empty():
     assert summarize([]) == []
 
