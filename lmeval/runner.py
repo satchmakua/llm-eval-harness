@@ -1,5 +1,6 @@
 """Run suites against models and collect scored, costed, timed results."""
 
+import json
 import statistics
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
@@ -40,7 +41,8 @@ def resolve_models(suite, config, cli_models):
     return config.get("default_models", [])
 
 
-def run_task(suite, task, model_id, default_provider, options, deterministic_only=False):
+def run_task(suite, task, model_id, default_provider, options,
+             deterministic_only=False, cache=None):
     prov_name, model = parse_model_id(model_id, default_provider)
     full_id = f"{prov_name}:{model}"
     provider = get_provider(prov_name)
@@ -50,11 +52,23 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
         messages.append({"role": "system", "content": task.system})
     messages.append({"role": "user", "content": task.prompt})
 
-    try:
-        comp = provider.complete(model, messages, options=options)
-    except Exception as exc:
-        return TaskResult(suite=suite.name, task_id=task.id, model=full_id,
-                          system=task.system, prompt=task.prompt, error=str(exc))
+    # Optional in-run cache: reuse the completion for an identical
+    # (model, messages, options) call so duplicates aren't paid for twice.
+    comp = None
+    key = None
+    if cache is not None:
+        key = (full_id, json.dumps(messages, sort_keys=True),
+               json.dumps(options or {}, sort_keys=True))
+        comp = cache.get(key)
+    cached = comp is not None
+    if comp is None:
+        try:
+            comp = provider.complete(model, messages, options=options)
+        except Exception as exc:
+            return TaskResult(suite=suite.name, task_id=task.id, model=full_id,
+                              system=task.system, prompt=task.prompt, error=str(exc))
+        if cache is not None:
+            cache[key] = comp
 
     judge_costs = []  # one entry per judge call, summed into the task's cost
     grades = []
@@ -67,8 +81,17 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
                          for jid in _judge_model_ids(spec, model_id)]
         grades.append(run_grader(spec, comp.text, judge_fns=judge_fns))
 
-    task_cost = cost_usd(full_id, comp.prompt_tokens, comp.completion_tokens)
     judge_cost = round(sum(judge_costs), 6)
+    if cached:
+        # served from cache: no API call, so no task tokens/cost/latency
+        prompt_tokens = completion_tokens = 0
+        task_cost = latency = 0.0
+    else:
+        prompt_tokens = comp.prompt_tokens
+        completion_tokens = comp.completion_tokens
+        task_cost = cost_usd(full_id, comp.prompt_tokens, comp.completion_tokens)
+        latency = comp.latency_s
+
     return TaskResult(
         suite=suite.name,
         task_id=task.id,
@@ -76,24 +99,30 @@ def run_task(suite, task, model_id, default_provider, options, deterministic_onl
         system=task.system,
         prompt=task.prompt,
         output=comp.text,
-        prompt_tokens=comp.prompt_tokens,
-        completion_tokens=comp.completion_tokens,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
         cost_usd=round(task_cost + judge_cost, 6),
         judge_cost_usd=judge_cost,
-        latency_s=comp.latency_s,
+        latency_s=latency,
         grades=grades,
+        cached=cached,
     )
 
 
 def _run_task_sampled(suite, task, model_id, default_provider, options,
-                      deterministic_only, repeat):
+                      deterministic_only, repeat, cache=None):
     """Run one task `repeat` times; collapse to a single majority-vote result.
 
     `repeat == 1` returns the single run unchanged. Otherwise the runs are
     summed (tokens, cost), averaged (latency), and voted (`pass_fraction`), with
     the first run's input/output kept as a representative sample.
+
+    The cache is bypassed when `repeat > 1`: repeated sampling has to make real
+    calls to measure variance, not replay one cached answer.
     """
-    runs = [run_task(suite, task, model_id, default_provider, options, deterministic_only)
+    run_cache = cache if repeat == 1 else None
+    runs = [run_task(suite, task, model_id, default_provider, options,
+                     deterministic_only, cache=run_cache)
             for _ in range(repeat)]
     if repeat == 1:
         return runs[0]
