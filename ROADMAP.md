@@ -18,4 +18,6 @@ limitations that motivate it.
 
 ## Medium term
 
-- An HTML dashboard over the JSON results.
+- Cache identical (model, prompt) completions within a run to avoid paying for
+  duplicates.
+- Per-tag/category score breakdowns in the report.

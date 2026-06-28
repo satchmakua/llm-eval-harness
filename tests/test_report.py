@@ -74,7 +74,7 @@ def test_write_reports_emits_all_artifacts(tmp_path):
                           system="be terse", prompt="hi", output="positive",
                           grades=[GradeResult("contains", passed=True)])]
     paths = write_reports(results, tmp_path)
-    for key in ("json", "csv", "md", "transcripts"):
+    for key in ("json", "csv", "md", "transcripts", "html"):
         assert Path(paths[key]).exists()
 
 
@@ -172,3 +172,20 @@ def test_md_report_no_flaky_section_when_consistent(tmp_path):
                           grades=[GradeResult("c", passed=True)])]
     md = Path(write_reports(results, tmp_path)["md"]).read_text(encoding="utf-8")
     assert "## Flaky tasks" not in md
+
+
+def test_html_dashboard_is_self_contained_and_escaped(tmp_path):
+    results = [
+        TaskResult(suite="s", task_id="t1", model="m", output="<script>x</script>",
+                   grades=[GradeResult("contains", passed=True)]),
+        TaskResult(suite="s", task_id="t2", model="m", prompt="p", error="boom"),
+    ]
+    page = Path(write_reports(results, tmp_path)["html"]).read_text(encoding="utf-8")
+    assert page.startswith("<!doctype html>")
+    assert "<style>" in page and "</html>" in page  # inline CSS, complete document
+    # model output is escaped, not injected as live markup
+    assert "<script>x</script>" not in page
+    assert "&lt;script&gt;x&lt;/script&gt;" in page
+    # verdict badges and the error both render
+    assert "PASS" in page and "FAIL" in page
+    assert "boom" in page

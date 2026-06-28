@@ -20,10 +20,11 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
   before it overspends (`lmeval/runner.py`).
 - **Reporting** — per-(suite, model) summaries with pass rate (and a 95% Wilson
   confidence interval), mean judge score, token/cost totals, and p50/p95 latency
-  (JSON, CSV, and a Markdown report that lists each failing task with its output
-  and the graders that failed, and flags tasks that flip under `--repeat`),
-  plus a `transcripts-*.jsonl` with one self-contained record per task — input
-  sent, model output, and grades — for debugging (`lmeval/report.py`).
+  (JSON, CSV, a browsable self-contained HTML dashboard, and a Markdown report
+  that lists each failing task with its output and the graders that failed, and
+  flags tasks that flip under `--repeat`), plus a `transcripts-*.jsonl` with one
+  self-contained record per task — input sent, model output, and grades — for
+  debugging (`lmeval/report.py`).
 - **Regression gating** — baseline snapshots plus relative-drop and absolute
   pass-rate floors, with a non-zero exit code on failure; wired into GitHub
   Actions (`lmeval/gate.py`, `.github/workflows/evals.yml`).
@@ -38,8 +39,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
   (`tests/test_graders.py`).
 - Gate and baseline logic (`tests/test_gate.py`).
 - Pricing calculations (`tests/test_pricing.py`).
-- Report aggregation, pass-rate confidence intervals, and transcript artifacts
-  (`tests/test_report.py`).
+- Report aggregation, pass-rate confidence intervals, transcript artifacts, and
+  the HTML dashboard (`tests/test_report.py`).
 - Suite loading (`tests/test_suite.py`).
 - Provider registry and the `provider:model` parser (`tests/test_providers.py`).
 - HTTP retry/backoff helper (`tests/test_http_retry.py`).
@@ -51,5 +52,5 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 
 ## Not yet done
 
-Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority items: an Amazon Bedrock
-adapter and an HTML dashboard over the JSON results.
+Tracked in [`ROADMAP.md`](ROADMAP.md). Highest-priority item: an Amazon Bedrock
+adapter (the remaining provider). See `ROADMAP.md` for medium-term ideas.

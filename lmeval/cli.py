@@ -86,7 +86,7 @@ def main(argv=None):
     if args.cmd == "run":
         paths = write_reports(results, args.out)
         print("\n" + _text_table(paths["rows"]))
-        print("\nwrote:", {k: paths[k] for k in ("json", "csv", "md", "transcripts")})
+        print("\nwrote:", {k: paths[k] for k in ("json", "csv", "md", "transcripts", "html")})
         return 0
 
     if args.cmd == "baseline":
