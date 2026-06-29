@@ -32,6 +32,8 @@ def _add_common(ap):
                     help="run up to N tasks in parallel (default 1 = sequential)")
     ap.add_argument("--repeat", type=int, default=1,
                     help="run each task N times; verdict is a majority vote (default 1)")
+    ap.add_argument("--cache", action="store_true",
+                    help="reuse identical (model, prompt) completions within the run")
 
 
 def _text_table(rows):
@@ -81,6 +83,7 @@ def main(argv=None):
         max_cost=args.max_cost,
         workers=args.concurrency,
         repeat=args.repeat,
+        cache=args.cache,
     )
 
     if args.cmd == "run":

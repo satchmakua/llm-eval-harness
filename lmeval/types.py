@@ -71,6 +71,7 @@ class TaskResult:
     error: Optional[str] = None
     samples: int = 1
     pass_fraction: Optional[float] = None
+    cached: bool = False
 
     @property
     def verdict(self) -> Optional[bool]:

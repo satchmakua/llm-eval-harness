@@ -54,10 +54,11 @@ def test_run_forwards_run_options(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cli, "run_suites", fake_run)
     cli.main(["run", *_common(tmp_path), "--out", str(tmp_path / "out"),
-              "--max-cost", "1.5", "--concurrency", "3", "--repeat", "4"])
+              "--max-cost", "1.5", "--concurrency", "3", "--repeat", "4", "--cache"])
     assert captured["max_cost"] == 1.5
     assert captured["workers"] == 3
     assert captured["repeat"] == 4
+    assert captured["cache"] is True
 
 
 def test_baseline_saves_file(tmp_path, monkeypatch):

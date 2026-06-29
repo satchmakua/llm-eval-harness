@@ -17,8 +17,9 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - **Runner** — executes every (suite × model × task) into a `TaskResult`, with
   per-task fault isolation, optional parallelism (`--concurrency`, results kept
   in stable order), optional repeated sampling (`--repeat`, majority-vote
-  verdict + pass fraction), and an optional `--max-cost` budget that stops a run
-  before it overspends (`lmeval/runner.py`).
+  verdict + pass fraction), an optional in-run completion cache (`--cache`), and
+  an optional `--max-cost` budget that stops a run before it overspends
+  (`lmeval/runner.py`).
 - **Reporting** — per-(suite, model) summaries with pass rate (and a 95% Wilson
   confidence interval), mean judge score, token/cost totals, and p50/p95 latency
   (JSON, CSV, a browsable self-contained HTML dashboard, and a Markdown report
@@ -45,8 +46,8 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 - Suite loading (`tests/test_suite.py`).
 - Provider registry and the `provider:model` parser (`tests/test_providers.py`).
 - HTTP retry/backoff helper (`tests/test_http_retry.py`).
-- Runner, including the cost-budget guardrail, repeated-sampling vote, and
-  judge-cost tracking (`tests/test_runner.py`).
+- Runner, including the cost-budget guardrail, repeated-sampling vote,
+  judge-cost tracking, and in-run caching (`tests/test_runner.py`).
 - CLI subcommands and exit codes (`tests/test_cli.py`).
 - End-to-end: the OpenAI, Gemini, and Bedrock adapters over a stub HTTP server,
   including retry/backoff and the SigV4 signer's known-answer vector
@@ -54,5 +55,5 @@ Current implementation status of llm-eval-harness. Last updated 2026-06-27.
 
 ## Not yet done
 
-Tracked in [`ROADMAP.md`](ROADMAP.md). Near-term: caching identical (model,
-prompt) completions within a run. See `ROADMAP.md` for medium-term ideas.
+Tracked in [`ROADMAP.md`](ROADMAP.md). Near-term: per-tag/category score
+breakdowns in the report. See `ROADMAP.md` for medium-term ideas.

@@ -201,8 +201,10 @@ def _task_row_html(r):
     label, cls = _VERDICT[r.verdict]
     body = _esc(r.error) if r.error else _esc(_preview(r.output, 300))
     meta = ""
+    if r.cached:
+        meta += "<div class='meta'>served from cache</div>"
     if r.samples > 1 and r.pass_fraction is not None:
-        meta = f"<div class='meta'>{r.samples} runs · pass {r.pass_fraction}</div>"
+        meta += f"<div class='meta'>{r.samples} runs · pass {r.pass_fraction}</div>"
     return (
         f"<tr class='task {cls}'>"
         f"<td><span class='badge {cls}'>{label}</span></td>"

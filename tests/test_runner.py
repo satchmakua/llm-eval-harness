@@ -191,6 +191,41 @@ def test_judge_cost_sums_across_ensemble(monkeypatch):
     assert r.judge_cost_usd == round(cost_usd("openai:gpt-4o", 10, 5) * 2, 6)
 
 
+def _dup_suite():
+    tasks = [Task(id="a", prompt="same", graders=[_contains("positive")]),
+             Task(id="b", prompt="same", graders=[_contains("positive")])]
+    return Suite(name="s", tasks=tasks, models=["openai:gpt-4o"])
+
+
+def test_cache_off_by_default_calls_each_time(monkeypatch):
+    fake = FakeProvider(text="positive")
+    _use(monkeypatch, fake)
+    run_suites([_dup_suite()], {"default_provider": "ollama", "model_options": {}})
+    assert len(fake.calls) == 2  # no caching unless asked
+
+
+def test_cache_dedupes_identical_calls(monkeypatch):
+    fake = FakeProvider(text="positive")
+    _use(monkeypatch, fake)
+    a, b = run_suites([_dup_suite()], {"default_provider": "ollama", "model_options": {}},
+                      cache=True)
+    assert len(fake.calls) == 1          # second identical call served from cache
+    assert a.cached is False and b.cached is True
+    assert b.output == "positive" and b.verdict is True
+    assert b.cost_usd == 0.0 and b.prompt_tokens == 0  # the duplicate is free
+    assert a.cost_usd > 0
+
+
+def test_cache_bypassed_under_repeat(monkeypatch):
+    fake = FakeProvider(text="positive")
+    _use(monkeypatch, fake)
+    task = Task(id="a", prompt="same", graders=[_contains("positive")])
+    suite = Suite(name="s", tasks=[task], models=["openai:gpt-4o"])
+    run_suites([suite], {"default_provider": "ollama", "model_options": {}},
+               cache=True, repeat=3)
+    assert len(fake.calls) == 3  # repeated sampling always makes real calls
+
+
 def test_concurrency_runs_all_tasks_in_order(monkeypatch):
     _use(monkeypatch, FakeProvider(text="positive"))
     tasks = [Task(id=f"t{i}", prompt="x", graders=[_contains("positive")]) for i in range(6)]

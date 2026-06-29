@@ -149,7 +149,7 @@ def _run_task_sampled(suite, task, model_id, default_provider, options,
 
 
 def run_suites(suites, config, cli_models=None, deterministic_only=False,
-               max_cost=None, workers=1, repeat=1):
+               max_cost=None, workers=1, repeat=1, cache=False):
     """Run every (suite, model, task) and collect results.
 
     `workers` runs that many tasks in parallel (default 1 = sequential). Each
@@ -158,6 +158,10 @@ def run_suites(suites, config, cli_models=None, deterministic_only=False,
 
     `repeat` runs each task that many times and collapses the runs into one
     majority-vote verdict plus a `pass_fraction`, for measuring variance.
+
+    `cache` (bool) memoizes identical (model, messages, options) completions for
+    the duration of the run, so duplicate calls aren't paid for twice. Bypassed
+    under `repeat > 1`.
 
     `max_cost` is an optional USD budget. It's a soft cap: no new task is started
     once cumulative spend has reached the budget. With `workers > 1`, up to
@@ -168,6 +172,7 @@ def run_suites(suites, config, cli_models=None, deterministic_only=False,
     options = config.get("model_options", {})
     default_provider = config.get("default_provider", "ollama")
     workers = max(1, workers)
+    cache_store = {} if cache else None
 
     work = [(suite, model_id, task)
             for suite in suites
@@ -192,7 +197,7 @@ def run_suites(suites, config, cli_models=None, deterministic_only=False,
                 print(f"  {suite.name} :: {model_id} :: {task.id}")
                 future = pool.submit(_run_task_sampled, suite, task, model_id,
                                      default_provider, options, deterministic_only,
-                                     repeat)
+                                     repeat, cache_store)
                 pending[future] = next_idx
                 next_idx += 1
 

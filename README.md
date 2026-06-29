@@ -120,6 +120,12 @@ vote across the runs, and the report shows each task's pass fraction and flags
 any whose result flips. Set a non-zero `temperature` in config for this to
 surface real variance — at `temperature: 0` the runs are identical.
 
+Pass `--cache` to reuse the result of any identical (model, prompt, options)
+call within a run instead of paying for it twice — useful when the same prompt
+recurs across suites. Cached tasks report $0 cost and ~0 latency and are marked
+`cached`; the cache is skipped under `--repeat` (repeated sampling must make
+real calls to measure variance).
+
 ## Adding a suite
 
 Drop a YAML file in `suites/`:

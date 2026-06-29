@@ -17,9 +17,8 @@ limitations that motivate it.
 
 ## Near term
 
-- Cache identical (model, prompt) completions within a run to avoid paying for
-  duplicates.
+- Per-tag/category score breakdowns in the report.
 
 ## Medium term
 
-- Per-tag/category score breakdowns in the report.
+- Persist the completion cache to disk so unchanged tasks are skipped across runs.
